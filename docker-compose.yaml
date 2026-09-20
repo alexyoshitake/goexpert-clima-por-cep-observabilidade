@@ -1,0 +1,51 @@
+services:
+  service-a:
+    build:
+      context: .
+      args:
+        SERVICE: service-a
+    environment:
+      PORT: "8080"
+      SERVICE_B_URL: http://service-b:8081
+      OTEL_SERVICE_NAME: service-a
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT}
+    depends_on:
+      - service-b
+      - otel-collector
+    ports:
+      - "8080:8080"
+
+  service-b:
+    build:
+      context: .
+      args:
+        SERVICE: service-b
+    environment:
+      PORT: "8081"
+      WEATHER_API_KEY: ${WEATHER_API_KEY}
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT}
+      VIACEP_BASE_URL: ${VIACEP_BASE_URL}
+      WEATHER_API_BASE_URL: ${WEATHER_API_BASE_URL}
+      OTEL_SERVICE_NAME: service-b
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+    depends_on:
+      - otel-collector
+    expose:
+      - "8081"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    command:
+      - "--config=/etc/otel-collector-config.yaml"
+    volumes:
+      - ./.docker/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    depends_on:
+      - zipkin
+    ports:
+      - "4317:4317"
+
+  zipkin:
+    image: openzipkin/zipkin:latest
+    ports:
+      - "9411:9411"
